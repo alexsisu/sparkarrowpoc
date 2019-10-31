@@ -45,7 +45,7 @@ object PythonEntryPoint {
 object MyApp extends App {
 
   val gatewayServer: GatewayServer = {
-    val inetAddress = InetAddress.getByName("192.168.1.13")
+    val inetAddress = InetAddress.getByName("10.1.100.173")
     println(s"Start Gateway server with host: ${inetAddress} and port 25333")
     val gateway_server = new GatewayServer(PythonEntryPoint, 25333, 0, inetAddress, null, 0, 0, null); // scalastyle:ignore
     Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
