@@ -8,6 +8,7 @@ import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.sql.{DataFrame, SQLContext, SparkSession}
 import py4j.GatewayServer
 
+import org.apache.spark.storage.StorageLevel
 
 object CustomSparkConf {
 
@@ -43,26 +44,19 @@ object PythonEntryPoint {
 }
 
 object MyApp extends App {
-
-  val gatewayServer: GatewayServer = {
-    val inetAddress = InetAddress.getByName("10.1.100.173")
-    println(s"Start Gateway server with host: ${inetAddress} and port 25333")
-    val gateway_server = new GatewayServer(PythonEntryPoint, 25333, 0, inetAddress, null, 0, 0, null); // scalastyle:ignore
-    Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
-      override def run(): Unit = {
-        print("Application is being shutted down")
-        try {
-          print("Shutting down gatewayServer")
-          gateway_server.shutdown()
-        } catch {
-          case t: Throwable =>
-            print("Failed to stop gatewayServer", t)
-        }
-      }
-    }))
-    gateway_server
+  println(args)
+  var exportParquet = false
+  var parquetFolder = "./out"
+  var givenHost = "127.0.0.1"
+  if (args.length > 0) {
+    if (args(0) == "export" && args(1).length > 0) {
+      exportParquet = true
+      parquetFolder = args(1)
+    }
+    else {
+      givenHost = args(0)
+    }
   }
-
   val sparkSession: SparkSession = CustomSparkConf.sparkSession //SparkSession.builder.appName("alexApp1").config("spark.master", "local").getOrCreate()
 
 
@@ -75,23 +69,49 @@ object MyApp extends App {
 
   val df: DataFrame = values.toDF("col1", "col2")
 
-  import org.apache.spark.storage.StorageLevel
 
-  df.createOrReplaceTempView("myTempTable")
+  if (exportParquet) {
+    df.write.parquet(parquetFolder+"/demo.parquet")
+    System.exit(0)
+  }
+  else {
+    val gatewayServer: GatewayServer = {
+      val inetAddress = InetAddress.getByName(givenHost)
+      println(s"Start Gateway server with host: ${inetAddress} and port 25333")
+      val gateway_server = new GatewayServer(PythonEntryPoint, 25333, 0, inetAddress, null, 0, 0, null); // scalastyle:ignore
+      Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
+        override def run(): Unit = {
+          print("Application is being shutted down")
+          try {
+            print("Shutting down gatewayServer")
+            gateway_server.shutdown()
+          } catch {
+            case t: Throwable =>
+              print("Failed to stop gatewayServer", t)
+          }
+        }
+      }))
+      gateway_server
+    }
 
-  val allTables = sparkSession.catalog.listTables()
-  println(sparkSession.catalog.tableExists("myTempTable"))
 
-  sparkSession.sharedState.cacheManager.cacheQuery(sparkSession.table("myTempTable"), Some("myTempTable"), StorageLevel.MEMORY_AND_DISK)
-  print(sparkSession.table("myTempTable").count())
-  gatewayServer.start()
-  println("---------------------------------------------")
-  println(sql.sql("show tables").collect().map(row => row.get(0).toString).mkString(","))
-  println("---------------------------------------------")
-  //println(sql.sql("select * from myTempTable").collect().map(row=>row.toString).mkString(","))
-  println("---------------------------------------------")
-  println(gatewayServer)
+    df.createOrReplaceTempView("myTempTable")
 
-  System.in.read()
+    val allTables = sparkSession.catalog.listTables()
+    println(sparkSession.catalog.tableExists("myTempTable"))
+
+    sparkSession.sharedState.cacheManager.cacheQuery(sparkSession.table("myTempTable"), Some("myTempTable"), StorageLevel.MEMORY_AND_DISK)
+    print(sparkSession.table("myTempTable").count())
+    gatewayServer.start()
+    println("---------------------------------------------")
+    println(sql.sql("show tables").collect().map(row => row.get(0).toString).mkString(","))
+    println("---------------------------------------------")
+    //println(sql.sql("select * from myTempTable").collect().map(row=>row.toString).mkString(","))
+    println("---------------------------------------------")
+    println(gatewayServer)
+
+    System.in.read()
+  }
+
 
 }

@@ -336,6 +336,31 @@
 
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>pack-project</id>
+                                <phase>install</phase>
+                                <configuration>
+                                    <tasks name="Copy jar and config files to output'">
+                                        <copy file="${project.basedir}/src/main/resources/logback.xml"
+                                              todir="${basedir}/target/output/conf"/>
+                                        <copy file="${project.basedir}/src/main/resources/logback.xml"
+                                              todir="${basedir}/target/output"/>
+                                        <copy file="${project.basedir}/src/main/resources/logback.xml"
+                                              todir="${basedir}/target/classes"/>
+
+                                    </tasks>
+                                </configuration>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
                         <version>3.0.0</version>
                         <executions>
@@ -346,16 +371,17 @@
                                 </goals>
                                 <configuration>
                                     <finalName>shaded-${project.build.finalName}</finalName>
-<!--
+
                                     <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
                                     <keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>
+
                                     <artifactSet>
                                         <includes>
                                             <include>*:*</include>
                                         </includes>
                                     </artifactSet>
--->
-<!--                                    <filters>
+
+                                    <filters>
                                         <filter>
                                             <artifact>*:*</artifact>
                                             <excludes>
@@ -371,19 +397,18 @@
                                                 <exclude>META-INF/*.RSA</exclude>
                                             </excludes>
                                         </filter>
-                                    </filters>-->
+                                    </filters>
                                     <transformers>
                                         <transformer
                                                 implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                             <mainClass>com.bde.MyApp</mainClass>
                                         </transformer>
-                                       <!--
                                         <transformer
                                                 implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                                             <resource>reference.conf</resource>
                                         </transformer>
                                         <transformer
-                                                implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>-->
+                                                implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                     </transformers>
                                 </configuration>
                             </execution>
