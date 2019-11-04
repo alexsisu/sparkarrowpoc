@@ -48,7 +48,7 @@ object MyApp extends App {
   println(args)
   var exportParquet = false
   var parquetFolder = "./out"
-  var nrOfEntries = 100000
+  var nrOfEntries = 200000
   var givenHost = "127.0.0.1"
   if (args.length > 0) {
     if (args(0) == "export" && args(1).length > 0) {
