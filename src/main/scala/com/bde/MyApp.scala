@@ -48,7 +48,7 @@ object MyApp extends App {
   println(args)
   var exportParquet = false
   var parquetFolder = "./out"
-  var nrOfEntries = 1000000
+  var nrOfEntries = 100000
   var givenHost = "127.0.0.1"
   if (args.length > 0) {
     if (args(0) == "export" && args(1).length > 0) {
@@ -94,7 +94,7 @@ object MyApp extends App {
 
   if (exportParquet) {
     "none,uncompressed,snappy,gzip,lzo".split(",").toList.map { codec =>
-      df.write.mode(SaveMode.Overwrite).option("spark.sql.parquet.compression.codec", codec).parquet(parquetFolder + "/demo_" + codec + ".parquet")
+      df.repartition(10).write.mode(SaveMode.Overwrite).option("spark.sql.parquet.compression.codec", codec).parquet(parquetFolder + "/demo_" + codec + ".parquet")
     }
     System.exit(0)
   }
