@@ -2,13 +2,14 @@ package com.bde
 
 import java.net.InetAddress
 
-
 import org.apache.spark.SparkConf
 import org.apache.spark.api.java.JavaSparkContext
-import org.apache.spark.sql.{DataFrame, SQLContext, SparkSession}
+import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import py4j.GatewayServer
-
 import org.apache.spark.storage.StorageLevel
+import java.util.UUID.randomUUID
+
+import org.apache.spark
 
 object CustomSparkConf {
 
@@ -47,11 +48,13 @@ object MyApp extends App {
   println(args)
   var exportParquet = false
   var parquetFolder = "./out"
+  var nrOfEntries = 1000000
   var givenHost = "127.0.0.1"
   if (args.length > 0) {
     if (args(0) == "export" && args(1).length > 0) {
       exportParquet = true
       parquetFolder = args(1)
+      nrOfEntries = args(2).toInt
     }
     else {
       givenHost = args(0)
@@ -62,16 +65,37 @@ object MyApp extends App {
 
   val sql = sparkSession.sqlContext
 
-  val bigList = Range(0, 50000).map(x => List(x.toString, "s" + x.toString)).toList
-  val values = bigList.map(x => (x(0), x(1)))
+  val bigList = Range(0, nrOfEntries).map(x => List(randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString,
+    randomUUID().toString)).toList
+  val values = bigList.map(x => (x(0), x(1), x(2), x(3), x(4), x(5), x(6), x(7), x(8), x(9), x(10), x(11), x(12), x(13), x(14), x(15), x(16), x(17), x(18), x(19)))
 
   import sql.implicits._
 
-  val df: DataFrame = values.toDF("col1", "col2")
+  val df: DataFrame = values.toDF(Range(0, 20).map(x => "col" + x.toString): _*)
 
 
   if (exportParquet) {
-    df.write.parquet(parquetFolder+"/demo.parquet")
+    "none,uncompressed,snappy,gzip,lzo".split(",").toList.map { codec =>
+      df.write.mode(SaveMode.Overwrite).option("spark.sql.parquet.compression.codec", codec).parquet(parquetFolder + "/demo_" + codec + ".parquet")
+    }
     System.exit(0)
   }
   else {
