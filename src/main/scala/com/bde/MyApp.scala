@@ -128,12 +128,13 @@ object MyApp extends App {
     }
 
     Thread.sleep(1000)
-    print("********************************")
+    println("PERFRESULTS********************************")
     allResults.foreach{
       case (query,runningTime)=>
         println(query,runningTime)
 
     }
+    println("PERFRESULTS********************************")
 
     System.exit(0)
   }
