@@ -124,7 +124,7 @@ object MyApp extends App {
         val startTime = System.currentTimeMillis()
         val res = sql.sql(query).collect()
         val endTime = System.currentTimeMillis()
-        (query, startTime-endTime)
+        (query, endTime-startTime)
     }
 
     Thread.sleep(1000)
