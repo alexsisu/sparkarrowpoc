@@ -47,14 +47,18 @@ object PythonEntryPoint {
 object MyApp extends App {
   println(args)
   var exportParquet = false
+  var runPerformanceTest = false
   var parquetFolder = "./out"
-  var nrOfEntries = 200000
+  var nrOfEntries = 10000
   var givenHost = "127.0.0.1"
   if (args.length > 0) {
     if (args(0) == "export" && args(1).length > 0) {
       exportParquet = true
       parquetFolder = args(1)
       nrOfEntries = args(2).toInt
+    }
+    else if (args(0) == "perf") {
+      runPerformanceTest = true
     }
     else {
       givenHost = args(0)
@@ -96,6 +100,41 @@ object MyApp extends App {
     "none,uncompressed,snappy,gzip,lzo".split(",").toList.map { codec =>
       df.repartition(10).write.mode(SaveMode.Overwrite).option("spark.sql.parquet.compression.codec", codec).parquet(parquetFolder + "/demo_" + codec + ".parquet")
     }
+    System.exit(0)
+  }
+  else if (runPerformanceTest) {
+    df.createOrReplaceTempView("myTempTable")
+
+    val allTables = sparkSession.catalog.listTables()
+    println(sparkSession.catalog.tableExists("myTempTable"))
+
+    sparkSession.sharedState.cacheManager.cacheQuery(sparkSession.table("myTempTable"), Some("myTempTable"), StorageLevel.MEMORY_AND_DISK)
+    print(sparkSession.table("myTempTable").count())
+
+    val queryList =List(
+      "select count(*) from myTempTable",
+      "select 1,count(*) from myTempTable",
+      "select col0  from myTempTable limit 10",
+      "select col1  from myTempTable limit 10",
+      "select col2  from myTempTable limit 10",
+      "select col3  from myTempTable limit 10",
+    )
+    val allResults = queryList.map {
+      query=>
+        val startTime = System.currentTimeMillis()
+        val res = sql.sql(query).collect()
+        val endTime = System.currentTimeMillis()
+        (query, startTime-endTime)
+    }
+
+    Thread.sleep(1000)
+    print("********************************")
+    allResults.foreach{
+      case (query,runningTime)=>
+        println(query,runningTime)
+
+    }
+
     System.exit(0)
   }
   else {
