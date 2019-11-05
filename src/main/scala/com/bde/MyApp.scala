@@ -117,7 +117,7 @@ object MyApp extends App {
       "select col0  from myTempTable limit 10",
       "select col1  from myTempTable limit 10",
       "select col2  from myTempTable limit 10",
-      "select col3  from myTempTable limit 10",
+      "select col3  from myTempTable limit 10"
     )
     val allResults = queryList.map {
       query=>
