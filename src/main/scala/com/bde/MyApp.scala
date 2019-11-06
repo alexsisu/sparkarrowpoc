@@ -49,8 +49,11 @@ object MyApp extends App {
   var exportParquet = false
   var runPerformanceTest = false
   var parquetFolder = "./out"
+  var writeParquetFolder = "./out2"
   var nrOfEntries = 10000
   var givenHost = "127.0.0.1"
+  var doBooks = false
+  var perfBooks = false
   if (args.length > 0) {
     if (args(0) == "export" && args(1).length > 0) {
       exportParquet = true
@@ -59,6 +62,15 @@ object MyApp extends App {
     }
     else if (args(0) == "perf") {
       runPerformanceTest = true
+    }
+    else if (args(0) == "books") {
+      parquetFolder = args(1)
+      doBooks = true
+    }
+    else if (args(0) == "perfbooks") {
+      parquetFolder = args(1)
+      writeParquetFolder = args(2)
+      perfBooks = true
     }
     else {
       givenHost = args(0)
@@ -95,8 +107,75 @@ object MyApp extends App {
 
   val df: DataFrame = values.toDF(Range(0, 20).map(x => "col" + x.toString): _*)
 
+  if (doBooks) {
+    val gatewayServer: GatewayServer = {
+      val inetAddress = InetAddress.getByName(givenHost)
+      println(s"Start Gateway server with host: ${inetAddress} and port 25333")
+      val gateway_server = new GatewayServer(PythonEntryPoint, 25333, 0, inetAddress, null, 0, 0, null); // scalastyle:ignore
+      Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
+        override def run(): Unit = {
+          print("Application is being shutted down")
+          try {
+            print("Shutting down gatewayServer")
+            gateway_server.shutdown()
+          } catch {
+            case t: Throwable =>
+              print("Failed to stop gatewayServer", t)
+          }
+        }
+      }))
+      gateway_server
+    }
 
-  if (exportParquet) {
+    val df_books = sparkSession.read.parquet(parquetFolder)
+
+
+    df_books.createOrReplaceTempView("books")
+
+    val allTables = sparkSession.catalog.listTables()
+    println(sparkSession.catalog.tableExists("books"))
+
+    sparkSession.sharedState.cacheManager.cacheQuery(sparkSession.table("books"), Some("books"), StorageLevel.MEMORY_AND_DISK)
+    val total_number = sparkSession.table("books").count()
+    print("TOTAL NUMBER OF BOOKS***", total_number)
+    gatewayServer.start()
+    println("---------------------------------------------")
+    println(sql.sql("show tables").collect().map(row => row.get(0).toString).mkString(","))
+    println("---------------------------------------------")
+    //println(sql.sql("select * from books").collect().map(row=>row.toString).mkString(","))
+    println("---------------------------------------------")
+    println(gatewayServer)
+
+    System.in.read()
+  }
+  else if (perfBooks) {
+    val df_books = sparkSession.read.parquet(parquetFolder)
+
+
+    df_books.createOrReplaceTempView("books")
+
+    val allTables = sparkSession.catalog.listTables()
+    println(sparkSession.catalog.tableExists("books"))
+
+    sparkSession.sharedState.cacheManager.cacheQuery(sparkSession.table("books"), Some("books"), StorageLevel.MEMORY_AND_DISK)
+    val total_number = sparkSession.table("books").count()
+    Thread.sleep(2000)
+    val writingTimePairs = "none,uncompressed,snappy,gzip,lzo".split(",").toList.map { codec =>
+      val startTime = System.currentTimeMillis()
+      df_books.repartition(10).write.mode(SaveMode.Overwrite).option("spark.sql.parquet.compression.codec", codec).parquet(writeParquetFolder + "/out_books_" + codec + ".parquet")
+      val endTime = System.currentTimeMillis()
+      (codec, endTime - startTime)
+    }
+
+    Thread.sleep(3000)
+    writingTimePairs.foreach {
+      case (codec, time) =>
+        println("*****ParquetWritingPerformance", codec, time)
+    }
+    System.exit(0)
+
+  }
+  else if (exportParquet) {
     "none,uncompressed,snappy,gzip,lzo".split(",").toList.map { codec =>
       df.repartition(10).write.mode(SaveMode.Overwrite).option("spark.sql.parquet.compression.codec", codec).parquet(parquetFolder + "/demo_" + codec + ".parquet")
     }
@@ -111,7 +190,7 @@ object MyApp extends App {
     sparkSession.sharedState.cacheManager.cacheQuery(sparkSession.table("myTempTable"), Some("myTempTable"), StorageLevel.MEMORY_AND_DISK)
     print(sparkSession.table("myTempTable").count())
 
-    val queryList =List(
+    val queryList = List(
       "select count(*) from myTempTable",
       "select 1,count(*) from myTempTable",
       "select col0  from myTempTable limit 10",
@@ -120,18 +199,18 @@ object MyApp extends App {
       "select col3  from myTempTable limit 10"
     )
     val allResults = queryList.map {
-      query=>
+      query =>
         val startTime = System.currentTimeMillis()
         val res = sql.sql(query).collect()
         val endTime = System.currentTimeMillis()
-        (query, endTime-startTime)
+        (query, endTime - startTime)
     }
 
     Thread.sleep(1000)
     println("PERFRESULTS********************************")
-    allResults.foreach{
-      case (query,runningTime)=>
-        println(query,runningTime)
+    allResults.foreach {
+      case (query, runningTime) =>
+        println(query, runningTime)
 
     }
     println("PERFRESULTS********************************")
