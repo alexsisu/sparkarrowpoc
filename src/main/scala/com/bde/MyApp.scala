@@ -51,7 +51,7 @@ object MyApp extends App {
   var parquetFolder = "./out"
   var writeParquetFolder = "./out2"
   var nrOfEntries = 10000
-  var givenHost = "127.0.0.1"
+  var givenHost = "10.1.100.173"
   var doBooks = false
   var perfBooks = false
   if (args.length > 0) {
